@@ -1,127 +1,393 @@
-openapi: 3.1.0 
-
-info: 
-
-  title: Syracuse Code Violations API 
-
-  description: API for accessing code violations data and listing available features. 
-
-  version: 1.0.0 
-
-servers: 
-
-  - url: https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_v2/FeatureServer/0 
-
-paths: 
-
-  /query: 
-
-    get: 
-
-      summary: Get Code Violations Data 
-
-      description: Retrieves code violations data based on query parameters. 
-
-      operationId: getCodeViolations 
-
-      parameters: 
-
-        - in: query 
-
-          name: where 
-
-          schema: 
-
-            type: string 
-
-          description: SQL-like WHERE clause to filter results.  For dates, use datetime format 
-
-        - in: query 
-
-          name: outFields 
-
-          schema: 
-
-            type: string 
-
-          description: Comma-separated list of fields to include in the output.  Should default to "violation_number,complaint_address,violation_date,status_type_name,owner_name,complaint_zip,complaint_type_name"
-
-        - in: query 
-
-          name: returnGeometry 
-
-          schema: 
-
-            type: boolean 
-
-          description: Whether to include geometry data in the output. 
-
-        - in: query 
-
-          name: f 
-
-          schema: 
-
-            type: string 
-
-            enum: [json, pjson, geojson] 
-
-          description: Format of the response. 
-
-        - in: query 
-
-          name: outSR 
-
-          schema: 
-
-            type: string 
-
-          description: Spatial reference of the output geometries. 
-
-      responses: 
-
-        '200': 
-
-          description: Successful response 
-
-          content: 
-
-            application/json: 
-
-              schema: 
-
-                type: object 
-
-                properties: 
-
-                  features: 
-
-                    type: array 
-
-                    items: 
-
-                      type: object 
-
-                      properties: 
-
-                        attributes: 
-
-                          type: object 
-
-                          additionalProperties: 
-
-                            type: string 
-
-                        geometry: 
-
-                          type: object 
-
-                          properties: 
-
-                            x: 
-
-                              type: number 
-
-                            y: 
-
-                              type: number 
+openapi: 3.1.0
+info:
+  title: Syracuse Code Violations API
+  description: Read-only metadata discovery, bounded queries, counts and ID retrieval.
+  version: 1.1.0
+servers:
+- url: https://services6.arcgis.com/bdPqSfflsdgFRVVM/arcgis/rest/services/Code_Violations_v2/FeatureServer
+paths:
+  /0:
+    get:
+      operationId: getCodeViolationsMetadata
+      summary: Read current field definitions and query capabilities
+      parameters:
+      - &id001
+        in: query
+        name: f
+        required: true
+        schema:
+          type: string
+          enum:
+          - json
+          default: json
+        description: Use ArcGIS JSON; the response contract does not describe GeoJSON.
+      responses:
+        '200':
+          description: ArcGIS JSON; inspect error even when HTTP status is 200.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/Metadata'
+                - $ref: '#/components/schemas/Error'
+        default:
+          description: ArcGIS JSON; inspect error even when HTTP status is 200.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /0/query:
+    get:
+      operationId: getCodeViolations
+      summary: Query code violations, count matching records or retrieve IDs
+      description: Read metadata first. Error objects can arrive with HTTP 200. A
+        feature page is not a total; check exceededTransferLimit and reconcile IDs/counts.
+        Do not set returnCountOnly and returnIdsOnly together.
+      parameters:
+      - *id001
+      - in: query
+        name: where
+        required: false
+        schema:
+          type: string
+          default: 1=1
+        description: Read-only ArcGIS SQL filter using verified fields. Escape apostrophes
+          in values; use half-open timestamp ranges for date fields.
+      - in: query
+        name: outFields
+        required: false
+        schema:
+          type: string
+          default: ObjectId,violation_number,complaint_address,violation_date,status_type_name,complaint_zip,complaint_type_name
+        description: Comma-separated verified field names. owner_name is absent; issued_to
+          is not an ownership substitute.
+      - in: query
+        name: returnGeometry
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: Request coordinates only when needed.
+      - in: query
+        name: outSR
+        required: false
+        schema:
+          type: integer
+          default: 4326
+        description: Output spatial reference when geometry is requested.
+      - in: query
+        name: returnCountOnly
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: Return total matching source rows, not unique properties or complaints.
+      - in: query
+        name: returnIdsOnly
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: Get matching object IDs; verify count and uniqueness before batching.
+      - in: query
+        name: objectIds
+        required: false
+        schema:
+          type: string
+        description: Comma-separated IDs from the ID inventory, in batches within
+          maxRecordCount.
+      - in: query
+        name: resultOffset
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+        description: Pagination offset; only use when metadata supports pagination.
+      - in: query
+        name: resultRecordCount
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+        description: Bound each feature page to at most 1000 and at most metadata
+          maxRecordCount.
+      - in: query
+        name: orderByFields
+        required: false
+        schema:
+          type: string
+          default: ObjectId ASC
+        description: Stable ordering ending with the metadata object ID field as tie
+          breaker. Only use if supported.
+      responses:
+        '200':
+          description: ArcGIS JSON; inspect error even when HTTP status is 200.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/Features'
+                - $ref: '#/components/schemas/Count'
+                - $ref: '#/components/schemas/IDs'
+                - $ref: '#/components/schemas/Error'
+        default:
+          description: ArcGIS JSON; inspect error even when HTTP status is 200.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: string
+    Field:
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        name:
+          type: string
+        alias:
+          type: string
+        type:
+          type: string
+        nullable:
+          type: boolean
+        domain:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+    Metadata:
+      type: object
+      required:
+      - fields
+      properties:
+        name:
+          type: string
+        objectIdField:
+          type: string
+        maxRecordCount:
+          type: integer
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+        dateFieldsTimeReference:
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+        advancedQueryCapabilities:
+          type: object
+          additionalProperties: true
+        editingInfo:
+          type: object
+          additionalProperties: true
+    Count:
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          type: integer
+          minimum: 0
+    IDs:
+      type: object
+      required:
+      - objectIds
+      properties:
+        objectIdFieldName:
+          type: string
+        objectIds:
+          type:
+          - array
+          - 'null'
+          items:
+            type: integer
+        exceededTransferLimit:
+          type: boolean
+    Features:
+      type: object
+      required:
+      - features
+      properties:
+        objectIdFieldName:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/Field'
+        exceededTransferLimit:
+          type: boolean
+        spatialReference:
+          type: object
+          additionalProperties: true
+        features:
+          type: array
+          items:
+            type: object
+            required:
+            - attributes
+            properties:
+              attributes:
+                type: object
+                properties:
+                  SBL:
+                    type:
+                    - string
+                    - 'null'
+                    description: SBL
+                  complaint_address:
+                    type:
+                    - string
+                    - 'null'
+                    description: complaint_address
+                  complaint_zip:
+                    type:
+                    - integer
+                    - 'null'
+                    description: complaint_zip
+                  complaint_number:
+                    type:
+                    - string
+                    - 'null'
+                    description: complaint_number
+                  complaint_type_name:
+                    type:
+                    - string
+                    - 'null'
+                    description: complaint_type_name
+                  violation_id:
+                    type:
+                    - integer
+                    - 'null'
+                    description: violation_id
+                  open_date:
+                    type:
+                    - integer
+                    - 'null'
+                    description: open_date (Unix epoch milliseconds; inspect dateFieldsTimeReference
+                      before filtering/displaying.)
+                  violation_number:
+                    type:
+                    - string
+                    - 'null'
+                    description: violation_number
+                  violation:
+                    type:
+                    - string
+                    - 'null'
+                    description: violation
+                  violation_date:
+                    type:
+                    - integer
+                    - 'null'
+                    description: violation_date (Unix epoch milliseconds; inspect
+                      dateFieldsTimeReference before filtering/displaying.)
+                  comply_by_date:
+                    type:
+                    - integer
+                    - 'null'
+                    description: comply_by_date (Unix epoch milliseconds; inspect
+                      dateFieldsTimeReference before filtering/displaying.)
+                  status_type_name:
+                    type:
+                    - string
+                    - 'null'
+                    description: status_type_name
+                  status_date:
+                    type:
+                    - integer
+                    - 'null'
+                    description: status_date (Unix epoch milliseconds; inspect dateFieldsTimeReference
+                      before filtering/displaying.)
+                  issued_to:
+                    type:
+                    - string
+                    - 'null'
+                    description: issued_to
+                  issued_to_address:
+                    type:
+                    - string
+                    - 'null'
+                    description: issued_to_address
+                  issued_to_city:
+                    type:
+                    - string
+                    - 'null'
+                    description: issued_to_city
+                  issued_to_zip:
+                    type:
+                    - string
+                    - 'null'
+                    description: issued_to_zip
+                  inspector_id:
+                    type:
+                    - integer
+                    - 'null'
+                    description: inspector_id
+                  Neighborhood:
+                    type:
+                    - string
+                    - 'null'
+                    description: Neighborhood
+                  Vacant:
+                    type:
+                    - string
+                    - 'null'
+                    description: Vacant
+                  Latitude:
+                    type:
+                    - number
+                    - 'null'
+                    description: Latitude
+                  Longitude:
+                    type:
+                    - number
+                    - 'null'
+                    description: Longitude
+                  ObjectId:
+                    type:
+                    - integer
+                    - 'null'
+                    description: ObjectId
+                additionalProperties:
+                  type:
+                  - string
+                  - number
+                  - boolean
+                  - 'null'
+              geometry:
+                type:
+                - object
+                - 'null'
+                properties:
+                  x:
+                    type: number
+                  y:
+                    type: number
+                  spatialReference:
+                    type: object
+                    additionalProperties: true
