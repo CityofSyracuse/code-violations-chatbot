@@ -1,0 +1,58 @@
+{
+  "objectIdFieldName": "ObjectId",
+  "uniqueIdField": {
+    "name": "ObjectId",
+    "isSystemMaintained": true
+  },
+  "globalIdFieldName": "",
+  "geometryType": "esriGeometryPoint",
+  "spatialReference": {
+    "wkid": 102100,
+    "latestWkid": 3857
+  },
+  "fields": [
+    {
+      "name": "ObjectId",
+      "type": "esriFieldTypeOID",
+      "alias": "ObjectId",
+      "sqlType": "sqlTypeInteger",
+      "domain": null,
+      "defaultValue": null
+    },
+    {
+      "name": "violation_date",
+      "type": "esriFieldTypeDate",
+      "alias": "violation_date",
+      "sqlType": "sqlTypeTimestamp2",
+      "length": 8,
+      "domain": null,
+      "defaultValue": null
+    },
+    {
+      "name": "status_type_name",
+      "type": "esriFieldTypeString",
+      "alias": "status_type_name",
+      "sqlType": "sqlTypeNVarchar",
+      "length": 4000,
+      "domain": null,
+      "defaultValue": null
+    }
+  ],
+  "exceededTransferLimit": true,
+  "features": [
+    {
+      "attributes": {
+        "ObjectId": 1,
+        "violation_date": 1793291001610,
+        "status_type_name": "Open"
+      }
+    },
+    {
+      "attributes": {
+        "ObjectId": 2,
+        "violation_date": 1793290963083,
+        "status_type_name": "Open"
+      }
+    }
+  ]
+}
